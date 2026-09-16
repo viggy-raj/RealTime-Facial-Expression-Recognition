@@ -1,0 +1,194 @@
+# =============================================================================
+# Facial Cue Extraction System — Default Configuration
+# =============================================================================
+
+# --- Capture Settings ---
+capture:
+  source: 0                    # 0 = default webcam, or path to video file, or RTSP URL
+  width: 640                   # Capture resolution width
+  height: 480                  # Capture resolution height
+  fps: 30                      # Target FPS
+  buffer_size: 1               # OpenCV buffer size (1 = minimal latency)
+
+# --- Face Detection ---
+detection:
+  model_selection: 0           # 0 = short-range (<2m), 1 = full-range (<5m)
+  min_detection_confidence: 0.5
+  max_faces: 4                 # Maximum number of faces to process
+
+# --- Face Tracking ---
+tracking:
+  iou_threshold: 0.3           # Minimum IoU to consider same face
+  max_disappeared: 15          # Frames before losing a track
+  centroid_weight: 0.4         # Weight for centroid distance in matching (vs IoU)
+
+# --- Landmarks / Face Mesh ---
+landmarks:
+  max_num_faces: 4
+  refine_landmarks: true       # Enable iris landmarks (478 vs 468)
+  min_detection_confidence: 0.5
+  min_tracking_confidence: 0.5
+
+# --- Head Pose Estimation ---
+head_pose:
+  # Indices of 6 canonical landmarks for PnP solving
+  # Nose tip, Chin, Left eye outer, Right eye outer, Left mouth corner, Right mouth corner
+  landmark_indices: [1, 152, 33, 263, 61, 291]
+  # Corresponding 3D model points (generic face model, mm)
+  model_points:
+    - [0.0, 0.0, 0.0]            # Nose tip
+    - [0.0, -63.6, -12.5]        # Chin
+    - [-43.3, 32.7, -26.0]       # Left eye outer corner
+    - [43.3, 32.7, -26.0]        # Right eye outer corner
+    - [-28.9, -28.9, -24.1]      # Left mouth corner
+    - [28.9, -28.9, -24.1]       # Right mouth corner
+  smoothing_alpha: 0.6           # Exponential smoothing factor (0=no smoothing, 1=full history)
+
+# --- Gaze Estimation ---
+gaze:
+  # MediaPipe iris landmark indices
+  left_iris_indices: [468, 469, 470, 471, 472]    # Left iris center + 4 boundary
+  right_iris_indices: [473, 474, 475, 476, 477]   # Right iris center + 4 boundary
+  left_eye_indices: [33, 133, 160, 144, 158, 153] # Left eye contour key points
+  right_eye_indices: [362, 263, 387, 373, 385, 380]
+  smoothing_alpha: 0.5
+
+# --- Action Unit Detection ---
+au_detection:
+  backend: "pytorch"           # "geometric" or "pytorch"
+  model_path: "d:/VS_Code_Workspace/Final Year Project/models/resnet_au_weights.pth"
+  
+  # Normalization reference: inter-ocular distance landmark indices
+  left_eye_center: [33, 133]     # Average of these for left eye center
+  right_eye_center: [362, 263]   # Average of these for right eye center
+  # AU landmark group definitions
+  au_definitions:
+    AU01_inner_brow_raise:
+      landmarks: [70, 63, 105, 66, 107]       # Inner brow points
+      reference: "brow_to_eye"
+      threshold: 0.28
+    AU02_outer_brow_raise:
+      landmarks: [46, 53, 52, 65, 55]         # Outer brow points
+      reference: "brow_to_eye"
+      threshold: 0.30
+    AU04_brow_lowerer:
+      landmarks: [70, 63, 105, 66, 107, 46, 53]
+      reference: "brow_convergence"
+      threshold: 0.20
+    AU05_upper_lid_raise:
+      landmarks: [159, 145, 386, 374]         # Upper/lower eyelid
+      reference: "eye_aperture"
+      threshold: 0.25
+    AU06_cheek_raise:
+      landmarks: [117, 118, 119, 346, 347, 348]  # Cheek area
+      reference: "cheek_to_eye"
+      threshold: 0.22
+    AU07_lid_tightener:
+      landmarks: [159, 145, 386, 374]
+      reference: "eye_squint"
+      threshold: 0.18
+    AU09_nose_wrinkler:
+      landmarks: [168, 6, 197, 195, 5]        # Nose bridge area
+      reference: "nose_to_brow"
+      threshold: 0.15
+    AU10_upper_lip_raiser:
+      landmarks: [0, 13, 14, 37, 267]         # Upper lip
+      reference: "lip_to_nose"
+      threshold: 0.20
+    AU12_lip_corner_puller:
+      landmarks: [61, 291, 13, 14]            # Mouth corners + upper lip
+      reference: "mouth_width"
+      threshold: 0.25
+    AU14_dimpler:
+      landmarks: [61, 291, 375, 146]
+      reference: "mouth_corner_depth"
+      threshold: 0.15
+    AU15_lip_corner_depressor:
+      landmarks: [61, 291, 17, 18]            # Mouth corners vs chin
+      reference: "mouth_downturn"
+      threshold: 0.18
+    AU17_chin_raiser:
+      landmarks: [17, 18, 200, 199, 175]      # Chin
+      reference: "chin_protrusion"
+      threshold: 0.15
+    AU20_lip_stretcher:
+      landmarks: [61, 291, 78, 308]           # Lateral lip stretch
+      reference: "lip_stretch"
+      threshold: 0.20
+    AU23_lip_tightener:
+      landmarks: [13, 14, 78, 308]            # Lip compression
+      reference: "lip_compression"
+      threshold: 0.15
+    AU25_lips_part:
+      landmarks: [13, 14, 82, 312]            # Upper/lower lip midpoints
+      reference: "lip_separation"
+      threshold: 0.10
+    AU26_jaw_drop:
+      landmarks: [13, 14, 17, 18]             # Lip-to-chin distance
+      reference: "jaw_opening"
+      threshold: 0.30
+    AU28_lip_suck:
+      landmarks: [0, 17, 13, 14]
+      reference: "lip_inversion"
+      threshold: 0.12
+    AU45_blink:
+      landmarks: [159, 145, 386, 374]
+      reference: "eye_closure"
+      threshold: 0.15
+
+# --- Temporal Spotting ---
+temporal_spotting:
+  backend: "heuristic"           # "heuristic" or "tcn"
+  model_path: "d:/VS_Code_Workspace/Final Year Project/AU/models/tcn_weights.pth"
+
+  # Micro-expression: 40-200ms (1/25s to 1/5s at 25fps ≈ 1-5 frames at 25fps)
+  micro:
+    min_duration_frames: 2       # Minimum frames for micro-expression
+    max_duration_frames: 8       # Maximum frames (~200ms at 30fps)
+    onset_velocity_threshold: 0.05   # Minimum rate of change to qualify
+    intensity_threshold: 0.3     # Minimum peak intensity
+    min_au_count: 1              # Minimum AUs involved
+  # Macro-expression: >500ms
+  macro:
+    min_duration_frames: 15      # Minimum frames (~500ms at 30fps)
+    max_duration_frames: 240     # Maximum frames (~8s at 30fps)
+    onset_velocity_threshold: 0.02
+    intensity_threshold: 0.25
+    min_au_count: 1
+  # General temporal settings
+  window_size: 30               # Sliding window size in frames
+  baseline_frames: 90           # Number of frames for baseline computation
+  smoothing_window: 3           # Temporal smoothing kernel size
+
+# --- Output ---
+output:
+  format: "json"                # Output format (json)
+  output_dir: "./output"        # Directory for output files
+  write_per_frame: false        # If true, write JSON per frame; if false, buffer
+  buffer_size: 30               # Frames to buffer before writing (if not per-frame)
+  include_landmarks: true       # Include full landmark arrays in output
+  include_3d_landmarks: false   # Include 3D landmark coordinates
+  pretty_print: false           # Pretty-print JSON (slower, larger files)
+
+# --- ML Expression Classifier ---
+# Set enabled: true after training models with training/train_expression_classifier.py
+ml_classifier:
+  enabled: true                # Set to true to activate classification
+  input_dim: 18                 # 18 = AU-only features; 79 = full feature vector
+  micro_model_path: "d:/VS_Code_Workspace/Final Year Project/AU/models/micro_lstm.pth"
+  macro_model_path: "d:/VS_Code_Workspace/Final Year Project/AU/models/macro_transformer.pth"
+  device: "auto"                # "auto", "cpu", or "cuda"
+
+# --- Visualization ---
+visualization:
+  enabled: true
+  show_bbox: true
+  show_landmarks: false         # Full landmark mesh (slow to render)
+  show_key_landmarks: true      # Only key landmarks (fast)
+  show_region_overlay: true
+  show_head_pose: true
+  show_gaze: true
+  show_au_bars: true
+  show_events: true
+  show_fps: true
+  window_name: "Facial Cues"

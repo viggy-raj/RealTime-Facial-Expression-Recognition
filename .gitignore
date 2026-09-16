@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data and Models (Too large for Git)
+data/
+models/
+*.pth
+*.tflite
+*.pt
+*.h5
+*.onnx
+
+# Outputs
+output/
+*.json
+*.avi
+*.mp4
+*.mkv
+
+# Virtual environments
+venv/
+env/
+.env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Anaconda
+.conda/
