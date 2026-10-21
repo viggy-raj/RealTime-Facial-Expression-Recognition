@@ -201,8 +201,8 @@ visualization:
   enabled: true
   show_bbox: true
   show_landmarks: false         # Full landmark mesh (slow to render)
-  show_key_landmarks: true      # Only key landmarks (fast)
-  show_region_overlay: true
+  show_key_landmarks: false     # Hidden; drawing code is still in visualizer.py
+  show_region_overlay: false    # Hidden; region dots stay in region_overlay.py
   show_head_pose: true
   show_gaze: true
   show_au_bars: true

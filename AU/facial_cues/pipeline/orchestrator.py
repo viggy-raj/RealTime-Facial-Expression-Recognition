@@ -210,6 +210,7 @@ class PipelineOrchestrator:
         self._last_prediction_text = ""
         self._last_prediction_time = 0.0
         self._last_deception_text = ""
+        self._last_deception_reasons: list = []
         self._last_emotion_text = ""
         logger.info(f"Pipeline running (FPS={fps}, visualize={visualize})")
 
@@ -262,6 +263,16 @@ class PipelineOrchestrator:
                             color,
                             2,
                         )
+                        for i, reason in enumerate(self._last_deception_reasons[:3]):
+                            cv2.putText(
+                                viz_frame,
+                                reason,
+                                (10, 100 + i * 22),
+                                cv2.FONT_HERSHEY_SIMPLEX,
+                                0.5,
+                                (255, 255, 255),
+                                1,
+                            )
                     if self._last_emotion_text:
                         font = cv2.FONT_HERSHEY_SIMPLEX
                         scale = 0.9
@@ -495,11 +506,14 @@ class PipelineOrchestrator:
 
         if buf.ready(cfg.min_frames) and self._frame_id % max(cfg.stride_frames, 1) == 0:
             fps = getattr(self, "_fps", None) or self.config.capture.fps or 30.0
-            label, p_lie = self.deception_classifier.predict(buf.features(fps))
+            features = buf.features(fps)
+            label, p_lie = self.deception_classifier.predict(features)
+            reasons = self.deception_classifier.explain(features)
             verdict = {
                 "label": label,
                 "p_lie": p_lie,
                 "window_frames": cfg.window_frames,
+                "reasons": reasons,
             }
             self._last_deception[face_id] = verdict
             if label == "untrained":
@@ -510,8 +524,9 @@ class PipelineOrchestrator:
                 text = f"LIE ({p_lie:.2f})"
             else:
                 text = f"TRUTH ({1.0 - p_lie:.2f})"
-            logger.info("[deception] face %s %s", face_id, text)
+            logger.info("[deception] face %s %s | %s", face_id, text, "; ".join(reasons))
             self._last_deception_text = text
+            self._last_deception_reasons = reasons
             self._last_prediction_time = time.time()
         return self._last_deception.get(face_id)
 

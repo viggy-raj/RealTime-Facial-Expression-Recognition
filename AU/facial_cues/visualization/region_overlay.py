@@ -54,7 +54,18 @@ class RegionOverlay:
                 434, 432, 436, 427, 430, 431, 262, 428, 419, 420, 421, 428
             ],
             "color": (0, 255, 255)  # Yellow
-        }
+        },
+        "eyebrows": {
+            # Both brows. The forehead list only covered one arch, so the
+            # far eyebrow looked empty when the head turned.
+            "indices": [
+                46, 53, 52, 65, 55, 70, 63, 105, 66, 107,
+                156, 124, 35, 31, 228, 229, 230, 231, 232, 233,
+                276, 283, 282, 295, 285, 300, 293, 334, 296, 336,
+                383, 353, 265, 261, 448, 449, 450, 451, 452, 453,
+            ],
+            "color": (255, 0, 255)  # Magenta
+        },
     }
 
     def __init__(self):

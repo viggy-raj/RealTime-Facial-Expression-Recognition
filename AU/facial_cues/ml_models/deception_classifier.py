@@ -12,7 +12,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from facial_cues.ml_models.deception_cues import FEATURE_DIM
+from facial_cues.ml_models.deception_cues import FEATURE_DIM, FEATURE_NAMES
 
 try:
     import torch
@@ -26,6 +26,31 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 LABELS = ("truth", "lie")
+
+_CUE_WORDS = {
+    "AU04": "brow tension",
+    "AU12": "smile pull",
+    "AU14": "dimpling",
+    "AU15": "mouth corners down",
+    "AU17": "chin raise",
+    "AU20": "lip stretch",
+    "AU23": "lip tightening",
+    "AU25": "parted lips",
+    "AU45": "blinking",
+    "gaze_aversion_frac": "looking away",
+    "gaze_down_frac": "looking down",
+    "gaze_mean_x": "sideways gaze",
+    "gaze_std_x": "shifting gaze",
+    "blinks_per_sec": "blink rate",
+    "micro_per_sec": "brief expressions",
+    "macro_per_sec": "held expressions",
+    "asym_mean": "uneven face",
+    "asym_std": "changing asymmetry",
+    "pose_std_yaw": "head shaking",
+    "pose_mean_abs_yaw": "head turned aside",
+    "pose_std_pitch": "nodding",
+    "pose_std_roll": "head tilt",
+}
 
 
 if TORCH_AVAILABLE:
@@ -121,9 +146,7 @@ class DeceptionClassifier:
             logger.warning("Deception feature dim %s != %s", x.shape[0], FEATURE_DIM)
             return "untrained", 0.5
         if self._kind == "forest":
-            proba = self._forest.predict_proba(x.reshape(1, -1))[0]
-            classes = list(self._forest.classes_)
-            p_lie = float(proba[classes.index(1)]) if 1 in classes else 0.0
+            p_lie = self._forest_p_lie(x)
             label = "lie" if p_lie >= 0.5 else "truth"
             return label, round(p_lie, 3)
         x = (x - self._mean) / self._std
@@ -138,3 +161,47 @@ class DeceptionClassifier:
             idx = int(probs.argmax().item())
             p_lie = float(probs[1].item())
         return LABELS[idx], round(p_lie, 3)
+
+    def explain(self, features: np.ndarray, limit: int = 3) -> list:
+        """
+        Short lines naming the cues that moved this window's lie score.
+
+        Each line is produced by turning one cue off and measuring how much
+        the lie probability changes. Cues that do not move the score are omitted.
+        """
+        if features is None or not self.ready or self._kind != "forest":
+            return []
+        x = np.asarray(features, dtype=np.float32).reshape(-1).copy()
+        if x.shape[0] != FEATURE_DIM:
+            return []
+        base = self._forest_p_lie(x)
+        scored = []
+        for index, name in enumerate(FEATURE_NAMES):
+            if abs(float(x[index])) < 1e-6:
+                continue
+            held = x[index]
+            x[index] = 0.0
+            delta = base - self._forest_p_lie(x)
+            x[index] = held
+            scored.append((name, delta))
+        toward_lie = base >= 0.5
+        scored = [item for item in scored if (item[1] > 0.01 if toward_lie else item[1] < -0.01)]
+        scored.sort(key=lambda item: abs(item[1]), reverse=True)
+        lines = []
+        seen = set()
+        for name, delta in scored:
+            family = name.split("_")[0] if name.startswith("AU") else name
+            if family in seen:
+                continue
+            seen.add(family)
+            words = _CUE_WORDS.get(family, _CUE_WORDS.get(name, name.replace("_", " ")))
+            direction = "raised" if delta > 0 else "lowered"
+            lines.append(f"{words} {direction} the lie score")
+            if len(lines) >= limit:
+                break
+        return lines
+
+    def _forest_p_lie(self, features: np.ndarray) -> float:
+        proba = self._forest.predict_proba(np.asarray(features, dtype=np.float32).reshape(1, -1))[0]
+        classes = list(self._forest.classes_)
+        return float(proba[classes.index(1)]) if 1 in classes else 0.0
