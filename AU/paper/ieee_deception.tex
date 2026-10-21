@@ -1,0 +1,165 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+
+\begin{document}
+
+\title{Facial Cue Analysis for Expression Recognition and Deception Estimation}
+
+\author{
+\IEEEauthorblockN{Vigneshwara Raju K}
+\IEEEauthorblockA{
+\textit{Final Year Project, Department of Artificial Intelligence and Machine Learning} \\
+\textit{Jyothy Institute of Technology} \\
+Bengaluru, India \\
+1jt23ai061@jyothyit.ac.in
+}
+}
+
+\maketitle
+
+\begin{abstract}
+This final-year project builds a webcam program that answers two questions separately: what expression is on the face, and whether a short window of facial movement looks more like truth or lie. The expression model is an EfficientNet-B0 trained on AffectNet. We switched to it after a model trained on posed photos called an angry shout ``happy.'' The lie score does not use that expression label. It uses action units, gaze, head pose, face asymmetry, and micro- and macro-expression counts, classified with a random forest. We tested it on the Real-life Deception Detection 2016 courtroom videos. Eight clips had no detectable face. On the remaining 113 clips, holding out each speaker, accuracy is 62.8\% and the F1 score for lies is 0.57. A simpler logistic regression stays near 53\%. Adding extra motion features made the result worse (58.4\%), so we did not keep them. If the lie probability is between 0.40 and 0.60, the screen says uncertain. The program does not decide that someone is lying.
+\end{abstract}
+
+\begin{IEEEkeywords}
+deception detection, facial action units, facial expression recognition, AffectNet, leave-one-speaker-out
+\end{IEEEkeywords}
+
+\section{Introduction}
+This paper is the write-up of a final-year student project. The aim was a webcam tool that shows an expression and a truth-or-lie score from the same face. Those are different questions, and we learned that mixing them up makes the program look more sure than it is.
+
+An expression is something we can see: the brows, the eyelids, and the mouth. A lie is a claim about facts. The face only gives weak hints, and those hints change with the person and the situation \cite{perez2015trial}. For that reason the expression label is not fed into the lie model. Anger is not treated as proof of lying, and a smile is not treated as proof of truth. On screen, truth or lie is on the left and the expression is on the right.
+
+We also had to be careful about how we measured accuracy. In the courtroom dataset, one person often appears in many clips, in the same room. If we had split clips at random, the model could score well by recognizing the person. We instead held out every clip from one speaker at a time. The number is lower. We report that lower number because it is the one that matches what the test is supposed to measure.
+
+\section{Related Work}
+P\'erez-Rosas \textit{et al.} released 121 short clips from public trials and from statements by exonerees \cite{perez2015trial}. The set contains 61 clips labeled deceptive and 60 labeled truthful. Labels follow case outcome: testimony for a guilty verdict is treated as deceptive, and exoneration statements are treated as truthful. The average clip is about 28 seconds. The speakers are 21 women and 35 men. Using transcripts together with manually coded gestures, the original system reached roughly 60--75\%, above the near-chance rate of human judges on the same clips. The release also includes a binary gesture table (smile, scowl, gaze down, head turn, one hand versus both hands) and a transcript for each clip. We did not use the transcripts or the gesture table. Our webcam demo has neither a human coder nor a transcript, and we did not want a model that only works when those files are present.
+
+We also looked at FacialCueNet, which mixes a visual network with action units, gaze, symmetry, and micro-expressions. Some published scores on these 121 clips are much higher than ours. We could not treat those scores as a target. Many of them do not keep one person entirely out of the test set, and the visual part needs a feature extractor we do not have in a simple webcam program.
+
+Expression recognition has a separate data problem. The Extended Cohn--Kanade set (CK+) contains posed peak frames with action-unit and emotion labels \cite{lucey2010ck}. It has no neutral class, and its happiness examples are typically open-mouth smiles. AffectNet labels in-the-wild faces for eight expressions, including neutral, along with valence and arousal \cite{mollahosseini2019affectnet}. Lightweight EfficientNet models trained on AffectNet and then used for video group-affect benchmarks are accurate enough to run on a CPU beside a face tracker \cite{savchenko2021hsemotion}.
+
+\section{System}
+\subsection{Per-frame measurements}
+Each frame is passed to MediaPipe Face Landmarker \cite{lugaresi2019mediapipe}, which returns up to one face in this configuration: a bounding box, 478 two-dimensional landmarks in pixels, and 52 blendshape scores. Four measurements are derived from that output.
+
+\textit{Action units.} Eighteen channels are estimated. Blendshape scores are preferred because they are closer to facial action coding than raw distances. If blendshapes are missing, the same names are filled from landmark geometry normalized by the distance between the outer eye corners. The eighteen channels are AU1 (inner brow raise), AU2 (outer brow raise), AU4 (brow lower), AU5 (upper lid raise), AU6 (cheek raise), AU7 (lid tighten), AU9 (nose wrinkle), AU10 (upper lip raise), AU12 (lip corner pull), AU14 (dimpler), AU15 (lip corner depress), AU17 (chin raise), AU20 (lip stretch), AU23 (lip tighten), AU25 (lips part), AU26 (jaw drop), AU28 (lip suck), and AU45 (blink).
+
+\textit{Head pose.} Pitch, yaw, and roll in degrees are solved from six landmark correspondences with a perspective-$n$-point solver. The focal length is approximated by the frame width.
+
+\textit{Gaze.} Iris centers (landmarks 468--477) are compared with the eye corners. The two eyes are averaged into one three-dimensional direction. Horizontal aversion is a large absolute value of the $x$ component. Looking down is a positive $y$ component under the image convention used by the tracker.
+
+\textit{Asymmetry.} Mouth-corner landmarks 61 and 291, and brow landmarks 105 and 334, are compared in the vertical direction. The sum of the absolute differences is divided by the distance between the outer eye corners (landmarks 33 and 263). The result is zero when the mesh is missing or too short.
+
+\textit{Expression events.} An onset is a frame-to-frame rise in an action unit past a velocity threshold. The event ends when the signal falls back. Events shorter than the micro-expression cap are stored as micro-expressions. Longer sustained events are stored as macro-expressions. Each event keeps its peak intensity and the action units that moved. These events are counted inside the deception window. They are not given emotion names.
+
+\subsection{Expression model}
+The live expression label is an EfficientNet-B0 with eight logits: anger, contempt, disgust, fear, happiness, neutral, sadness, and surprise. The weights are the public VGAF checkpoint distributed with EmotiEffLib \cite{savchenko2021hsemotion}, a model tuned for video rather than for still posed photographs. The face box is expanded by 15\% of its longer side, clipped to the frame, converted from BGR to RGB, resized to $224 \times 224$, and normalized with ImageNet mean $(0.485, 0.456, 0.406)$ and standard deviation $(0.229, 0.224, 0.225)$. The displayed class is the softmax argmax. If that class is not neutral and the probability is below 0.35, the interface shows neutral instead, so a low-confidence guess is not presented as an expression. Inference runs every fifth frame so the tracker can keep a real-time rate.
+
+Two earlier expression models were trained and then removed from the live path. A ResNet-18, initialized from ImageNet and fine-tuned on CK+ grayscale faces, reached about 79\% validation accuracy on CK+. It has seven classes and no neutral output. Because CK+ happiness is an open mouth with visible teeth, a shout was labeled happiness at high confidence even when the lip corners were not pulled. A bidirectional LSTM on eighteen action-unit channels, trained on the same posed sequences, reached only about 45\% validation accuracy and labeled a resting webcam face as disgust. Neither failure is a small calibration error. Both models were answering a different distribution from a room-scale webcam.
+
+\subsection{Deception features}
+Deception is not decided from one frame. Offline, each courtroom clip is reduced to one vector after sampling the video at about 10 frames per second. Online, the same function runs on a rolling buffer of 90 frames. The first score is emitted after 30 frames and then refreshed every 15 frames. At 30 frames per second that buffer is about three seconds. The training clips are longer than three seconds, so the saved forest sees a whole answer, while the webcam sees a short slice of one. That difference is a domain gap, and it is one reason a live score near one half should not be treated as a verdict.
+
+The vector has 52 dimensions, grouped in Table~\ref{tab:feats}. Duty cycle is the fraction of samples in which an action unit is at least $0.30$. A blink onset is a rising crossing of that threshold on AU45. Rates divide counts by the duration of the window in seconds. Gaze aversion is the fraction of samples whose absolute horizontal component is at least $0.20$. Looking down is the fraction whose vertical component is at least $0.15$.
+
+\begin{table}[t]
+\caption{Deception feature groups. The nine action units are AU4, AU12, AU14, AU15, AU17, AU20, AU23, AU25, and AU45.}
+\label{tab:feats}
+\centering
+\begin{tabular}{lr}
+\toprule
+Group & Count \\
+\midrule
+Per action unit: mean, std, max, duty & 36 \\
+Gaze mean, std, aversion, looking down & 6 \\
+Pose std and mean absolute yaw & 4 \\
+Asymmetry mean and std & 2 \\
+Blinks, micro, macro, micro intensity & 4 \\
+\midrule
+Total & 52 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The nine action units were chosen to cover the cues used by appearance-plus-cue deception networks (lip-corner depression, chin raise, lip stretch, lips parting, and blinks) together with movements often discussed with concealed affect: brow lowering, lip-corner pull, dimpling, and lip tightening. The other nine action units are still computed for the on-screen bars and for expression spotting. They are not part of the deception vector, because a 113-clip training set cannot support a much wider input without memorizing speakers.
+
+\subsection{Classifier and display}
+The classifier is a random forest of 200 trees, with minimum leaf size 2 and class weights inversely proportional to class frequency. Tree depth is not fixed in advance. Inside each leave-one-speaker training fold, an inner speaker hold-out compares depths 3, 4, and 6, and the outer model uses the depth with the higher inner accuracy. Across outer folds the selected depth is usually 3. The file used at run time is a forest of depth 3 refit on all 113 clips, so live inference sees every courtroom speaker the evaluation held out one at a time. The reported accuracy is the held-out number, not the training fit.
+
+The forest returns a probability for the lie class. The interface maps that probability as follows. Below 0.40 the label is truth. Above 0.60 the label is lie. Between those bounds the label is uncertain. The band exists because a probability of 0.53 is not a finding. It is a score close to the decision threshold.
+
+\section{Experiment}
+\subsection{Data}
+All deception numbers use the 2016 release of the real-life trial set \cite{perez2015trial}. Face detection failed on eight files, which are excluded rather than filled with zeros: \texttt{trial\_lie\_045}, \texttt{trial\_lie\_047}, \texttt{trial\_lie\_048}, \texttt{trial\_lie\_049}, \texttt{trial\_lie\_059}, \texttt{trial\_truth\_016}, \texttt{trial\_truth\_017}, and \texttt{trial\_truth\_041}. The remaining 113 clips contain 56 lie labels and 57 truth labels. Speaker names are parsed from the dataset readme. That parse yields 31 names. The original paper lists 56 people. The smaller count is expected: many clips are repeated answers from the same defendant or witness, and a few readme rows do not match the filename pattern. One truth clip remained attached to its filename rather than a personal name and is therefore its own speaker.
+
+\subsection{Protocol}
+The test is leave-one-speaker-out. For each of the 31 names, every clip of that name is removed, a forest is trained on the other clips, and the removed clips are predicted. Clip accuracy is the fraction of those predictions that match the file label. Lie F1 treats the lie class as the positive class. A second summary takes a majority vote of each speaker's clip predictions and compares it with the majority of that speaker's labels. The second number is harsh, because several names occur in both folders, so the speaker does not have a single true label.
+
+The same clip features are given to a class-balanced logistic regression with standardized inputs. A third model adds seven motion features computed from the cached sequences, with no new pass over the video: mean absolute frame-to-frame change of the nine action units, of horizontal gaze, and of yaw, plus the difference between the second half and the first half of AU4, AU12, AU45, and horizontal gaze. That comparison uses fixed depths 3, 4, and 6 rather than the full inner search. The best of those three depths is reported.
+
+No expression accuracy is computed on the courtroom clips. The clips have verdict labels, not expression labels. The AffectNet and VGAF figures quoted below are the checkpoint authors' published validation numbers \cite{savchenko2021hsemotion}. They were not remeasured here.
+
+\section{Results}
+Table~\ref{tab:results} gives the clip-level scores. The system loads the first row.
+
+\begin{table}[t]
+\caption{Leave-one-speaker-out results on 113 courtroom clips. Lie F1 is omitted for logistic regression, which was recorded only as accuracy.}
+\label{tab:results}
+\centering
+\begin{tabular}{lcc}
+\toprule
+Model & Accuracy & Lie F1 \\
+\midrule
+Random forest, 52 cues & 0.628 & 0.571 \\
+Logistic regression, same cues & 0.530 & -- \\
+Forest plus 7 motion features & 0.584 & 0.505 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Speaker-level majority vote is correct for 17 of 31 speakers, or 54.8\%. That is only slightly above a coin flip, and it is lower than clip accuracy. Clip accuracy can be carried by speakers who contribute many clips of one label, such as a defendant who appears only in the deceptive folder. Majority vote asks a different question, and the mixed-label speakers make that question ill-posed.
+
+The expression checkpoint is described by its authors as about 61\% accurate on eight-class AffectNet validation and about 68\% on the VGAF video set \cite{savchenko2021hsemotion}. Those numbers are the reason it replaced the CK+ ResNet-18. They are not a claim that the webcam label is correct 61\% of the time in this room. Webcam frames were not part of that validation set.
+
+\section{Discussion}
+An accuracy of 62.8\% is above chance on a balanced pair of labels and well below the confidence a colored on-screen word suggests. Three facts about the data keep the number from going much higher with face cues alone.
+
+The labels are inherited from verdicts and exonerations. A truthful witness in a case that ended in a guilty verdict can be stored as a lie, and the model is trained to copy that label. The original collection paper is explicit about this rule \cite{perez2015trial}. It is a practical way to label public video, and it is also a source of noise.
+
+The picture is a courtroom, not a webcam close-up. Faces are small, sometimes partly turned away, and eight clips contain no face the tracker can use. Identity, room, and camera recur. Holding the speaker out removes the easiest form of memorization. It does not remove the room. A model can still use lighting and image quality that happen to differ between the deceptive trials and the exoneration interviews.
+
+The training sample is 113 vectors. A linear model on the 52 cues is about 53\% under the same speaker hold-out, which means the decision boundary is not a simple weighted sum of blink rate and gaze aversion. The forest gains about ten points by using interactions, then stops. Adding seven motion statistics, which are a reasonable description of ``how the face changes,'' drops the fixed-depth forest to 58.4\%. On this sample, extra face features fit the training speakers and fail on the held-out ones.
+
+Live use adds a further shift. The forest was fit to entire answers sampled at about 10 frames per second. The preview scores about three seconds of a close, well-lit face. A resting face in that setting often falls inside the uncertain band, and the interface is required to say so. Forcing every score to truth or lie would make the demo look more decisive and would not make it more correct.
+
+Speech and the released gesture codes remain the clearest unused signal. They are what carried the original 60--75\% multimodal result \cite{perez2015trial}. They are omitted here on purpose: the running system has to score a webcam frame without a transcript and without a human gesture coder. Using those columns only at training time would raise the paper's table and leave the live model without the features it was trained on.
+
+\section{Conclusion}
+As a student project, the useful outcome is not a high accuracy claim. It is a working split between two models, and a test that does not reward recognizing the same person twice. The expression model is an eight-class network trained on real-world faces, so a resting face can be neutral and a shout is not forced into ``happy.'' The lie model is a small random forest on 52 facial measurements. Holding out each speaker on 113 courtroom clips, we get 62.8\% accuracy and a lie F1 of 0.57. A linear model and a version with extra motion features both did worse, so we kept the simpler forest. The live window says ``uncertain'' when the score is close to one half, and it never treats the expression word as a lie.
+
+\begin{thebibliography}{00}
+\bibitem{perez2015trial}
+V. P\'erez-Rosas, M. Abouelenien, R. Mihalcea, and M. Burzo, ``Deception detection using real-life trial data,'' in \textit{Proc. ACM Int. Conf. Multimodal Interaction (ICMI)}, 2015, pp. 59--66.
+
+\bibitem{lucey2010ck}
+P. Lucey, J. F. Cohn, T. Kanade, J. Saragih, Z. Ambadar, and I. Matthews, ``The extended Cohn-Kanade dataset (CK+): A complete dataset for action unit and emotion-specified expression,'' in \textit{Proc. IEEE CVPR Workshops}, 2010, pp. 94--101.
+
+\bibitem{mollahosseini2019affectnet}
+A. Mollahosseini, B. Hasani, and M. H. Mahoor, ``AffectNet: A database for facial expression, valence, and arousal computing in the wild,'' \textit{IEEE Trans. Affect. Comput.}, vol. 10, no. 1, pp. 18--31, 2019.
+
+\bibitem{savchenko2021hsemotion}
+A. V. Savchenko, ``Facial expression and attributes recognition based on multi-task learning of lightweight neural networks,'' in \textit{Proc. IEEE Int. Symp. Intell. Syst. Inform. (SISY)}, 2021, pp. 119--124.
+
+\bibitem{lugaresi2019mediapipe}
+C. Lugaresi \textit{et al.}, ``MediaPipe: A framework for building perception pipelines,'' \textit{arXiv:1906.08172}, 2019.
+\end{thebibliography}
+
+\end{document}

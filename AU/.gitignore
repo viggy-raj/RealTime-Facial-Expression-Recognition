@@ -1,0 +1,37 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Cached clips and generated output. The trained weights under models/ stay tracked.
+data/
+output/
+
+# Large unused checkpoints and media
+*.tflite
+*.h5
+*.onnx
+*.avi
+*.mp4
+*.mkv
+
+# Generated JSON batches
+*.json
+
+# Virtual environments
+venv/
+env/
+.env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Anaconda
+.conda/
