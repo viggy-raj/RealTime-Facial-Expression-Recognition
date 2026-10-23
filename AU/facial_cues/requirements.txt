@@ -18,5 +18,10 @@ matplotlib>=3.7.0
 tqdm>=4.65.0
 gdown>=4.7.0
 
+# Live score API (optional; run.bat does not use this)
+fastapi>=0.110.0
+uvicorn>=0.27.0
+python-dotenv>=1.0.0
+
 # Development
 # pytest>=7.0.0
