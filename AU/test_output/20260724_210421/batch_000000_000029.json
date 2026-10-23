@@ -1,0 +1,158 @@
+{
+  "session_id": "20260724_210421",
+  "batch_start_frame": 0,
+  "batch_end_frame": 29,
+  "frame_count": 30,
+  "frames": [
+    {
+      "frame_id": 0,
+      "timestamp_ms": 1000.48,
+      "faces": []
+    },
+    {
+      "frame_id": 1,
+      "timestamp_ms": 2006.42,
+      "faces": []
+    },
+    {
+      "frame_id": 2,
+      "timestamp_ms": 3012.31,
+      "faces": []
+    },
+    {
+      "frame_id": 3,
+      "timestamp_ms": 4018.43,
+      "faces": []
+    },
+    {
+      "frame_id": 4,
+      "timestamp_ms": 5024.97,
+      "faces": []
+    },
+    {
+      "frame_id": 5,
+      "timestamp_ms": 6030.99,
+      "faces": []
+    },
+    {
+      "frame_id": 6,
+      "timestamp_ms": 7037.29,
+      "faces": []
+    },
+    {
+      "frame_id": 7,
+      "timestamp_ms": 8042.1,
+      "faces": []
+    },
+    {
+      "frame_id": 8,
+      "timestamp_ms": 9047.52,
+      "faces": []
+    },
+    {
+      "frame_id": 9,
+      "timestamp_ms": 10052.92,
+      "faces": []
+    },
+    {
+      "frame_id": 10,
+      "timestamp_ms": 11059.32,
+      "faces": []
+    },
+    {
+      "frame_id": 11,
+      "timestamp_ms": 12067.47,
+      "faces": []
+    },
+    {
+      "frame_id": 12,
+      "timestamp_ms": 13074.79,
+      "faces": []
+    },
+    {
+      "frame_id": 13,
+      "timestamp_ms": 14081.42,
+      "faces": []
+    },
+    {
+      "frame_id": 14,
+      "timestamp_ms": 15087.69,
+      "faces": []
+    },
+    {
+      "frame_id": 15,
+      "timestamp_ms": 16095.16,
+      "faces": []
+    },
+    {
+      "frame_id": 16,
+      "timestamp_ms": 17101.66,
+      "faces": []
+    },
+    {
+      "frame_id": 17,
+      "timestamp_ms": 18107.6,
+      "faces": []
+    },
+    {
+      "frame_id": 18,
+      "timestamp_ms": 19115.28,
+      "faces": []
+    },
+    {
+      "frame_id": 19,
+      "timestamp_ms": 20121.61,
+      "faces": []
+    },
+    {
+      "frame_id": 20,
+      "timestamp_ms": 21128.44,
+      "faces": []
+    },
+    {
+      "frame_id": 21,
+      "timestamp_ms": 22136.1,
+      "faces": []
+    },
+    {
+      "frame_id": 22,
+      "timestamp_ms": 23142.15,
+      "faces": []
+    },
+    {
+      "frame_id": 23,
+      "timestamp_ms": 24149.46,
+      "faces": []
+    },
+    {
+      "frame_id": 24,
+      "timestamp_ms": 25155.29,
+      "faces": []
+    },
+    {
+      "frame_id": 25,
+      "timestamp_ms": 26161.8,
+      "faces": []
+    },
+    {
+      "frame_id": 26,
+      "timestamp_ms": 27168.88,
+      "faces": []
+    },
+    {
+      "frame_id": 27,
+      "timestamp_ms": 28176.13,
+      "faces": []
+    },
+    {
+      "frame_id": 28,
+      "timestamp_ms": 29182.84,
+      "faces": []
+    },
+    {
+      "frame_id": 29,
+      "timestamp_ms": 30190.2,
+      "faces": []
+    }
+  ]
+}
